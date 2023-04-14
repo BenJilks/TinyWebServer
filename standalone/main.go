@@ -42,7 +42,7 @@ func setLogLevel(levelName string) {
 		levelName = "info"
 	}
 
-	log.WithField("level", levelName).
+	log.WithField("log-level", levelName).
 		Info("Using log level")
 }
 
@@ -60,7 +60,7 @@ func fileConfig(filePath string, config Config) Config {
 }
 
 func commandLineConfig(config Config) Config {
-	logLevel := flag.String("log-level", "info",
+	logLevel := flag.String("log-level", config.LogLevel,
 		"Log level (panic, fatal, error, warn, info, debug and trace)")
 	configFile := flag.String("config", "", "Config file path")
 	webServerConfig := webserver.CommandLineConfig(config.WebServerConfig)

@@ -7,15 +7,16 @@ A standalone server application is provided, allowing you to serve files from a 
 ## Config Files
 The ini format is used, all settings are under the `server` section, allowing you to add sections for your own application, each setting is listed below.
 
-| Name    | Type    | Description                     |
-| ------- | ------- | ------------------------------- |
-| address | string  | Address the server is bound to. |
-| port    | int     | Port number used.               |
-| static  | string  | Directory path of file served.  |
-| name    | string  | Name to identify the server.    |
-| cert    | string  | File path of TLS certificate.   |
-| key     | string  | File path of TLS private key.   |
-| gzip    | boolean | Enable GZip encoding.           |
+| Name          | Type    | Description                      |
+| ------------- | ------- | -------------------------------- |
+| address       | string  | Address the server is bound to.  |
+| port          | int     | Port number used.                |
+| static        | string  | Directory path of file served.   |
+| name          | string  | Name to identify the server.     |
+| cert          | string  | File path of TLS certificate.    |
+| key           | string  | File path of TLS private key.    |
+| http-to-https | boolean | Redirect http requests to https. |
+| gzip          | boolean | Enable GZip encoding.            |
 
 If a certificate and key is provided, then TLS will automatically be enabled.
 

@@ -192,6 +192,27 @@ func displayWebAddress(address string, port uint, useTLS bool) string {
 	}
 }
 
+func httpToHttpsRedirectService(config Config) {
+	log.Info("Starting http to https redirect service")
+
+	bindAddress := fmt.Sprintf("%s:80", config.Address)
+	err := http.ListenAndServe(bindAddress, http.HandlerFunc(
+		func(response http.ResponseWriter, request *http.Request) {
+			redirectUrl := fmt.Sprintf("https://%s:%d%s", request.Host, config.Port, request.URL.Path)
+			if len(request.URL.RawQuery) > 0 {
+				redirectUrl = fmt.Sprintf("%s?%s", redirectUrl, request.URL.RawQuery)
+			}
+
+			log.WithField("url", redirectUrl).
+				Trace("Got http request, redirecting to https")
+			http.Redirect(response, request, redirectUrl, http.StatusPermanentRedirect)
+		}))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func Listen(config Config, handler http.HandlerFunc) error {
 	useTLS := config.CertFilePath != "" && config.KeyFilePath != ""
 	config.log(useTLS)
@@ -203,9 +224,17 @@ func Listen(config Config, handler http.HandlerFunc) error {
 	}).Info("Started listening for connections")
 
 	if useTLS {
+		if config.EnableHttpToHttps {
+			go httpToHttpsRedirectService(config)
+		}
+
 		return http.ListenAndServeTLS(bindAddress,
 			config.CertFilePath, config.KeyFilePath, handler)
 	} else {
+		if config.EnableHttpToHttps {
+			log.Warning("Can't enable http to https redirect, as TLS is not enabled")
+		}
+
 		return http.ListenAndServe(bindAddress, handler)
 	}
 }

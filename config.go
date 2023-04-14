@@ -15,7 +15,8 @@ type Config struct {
 	CertFilePath string
 	KeyFilePath  string
 
-	EnableGzip bool
+	EnableHttpToHttps bool
+	EnableGzip        bool
 }
 
 func (config *Config) log(useTLS bool) {
@@ -25,7 +26,9 @@ func (config *Config) log(useTLS bool) {
 		"static-files": config.StaticFilesPath,
 		"name":         config.ServerName,
 		"tls":          useTLS,
-		"enable-gzip":  config.EnableGzip,
+
+		"enable-http-to-https": config.EnableHttpToHttps,
+		"enable-gzip":          config.EnableGzip,
 	}
 
 	if useTLS {
@@ -47,7 +50,8 @@ func DefaultConfig() Config {
 		KeyFilePath:  "",
 		CertFilePath: "",
 
-		EnableGzip: true,
+		EnableHttpToHttps: false,
+		EnableGzip:        true,
 	}
 }
 
@@ -63,7 +67,8 @@ func FileConfig(configFile *ini.File, config Config) Config {
 		CertFilePath: serverSection.Key("cert").MustString(config.CertFilePath),
 		KeyFilePath:  serverSection.Key("key").MustString(config.KeyFilePath),
 
-		EnableGzip: serverSection.Key("gzip").MustBool(config.EnableGzip),
+		EnableHttpToHttps: serverSection.Key("http-to-https").MustBool(config.EnableHttpToHttps),
+		EnableGzip:        serverSection.Key("gzip").MustBool(config.EnableGzip),
 	}
 }
 
@@ -75,6 +80,7 @@ func CommandLineConfig(config Config) Config {
 	certFile := flag.String("cert", config.CertFilePath, "TLS cert file")
 	keyFile := flag.String("key", config.KeyFilePath, "TLS key file")
 
+	enableHttpToHttps := flag.Bool("enable-http-to-https", config.EnableHttpToHttps, "Enable http to https redirect")
 	disableGzip := flag.Bool("disable-gzip", !config.EnableGzip, "Disable Gzip compression")
 
 	flag.Parse()
@@ -87,6 +93,7 @@ func CommandLineConfig(config Config) Config {
 		CertFilePath: *certFile,
 		KeyFilePath:  *keyFile,
 
-		EnableGzip: !*disableGzip,
+		EnableHttpToHttps: *enableHttpToHttps,
+		EnableGzip:        !*disableGzip,
 	}
 }
