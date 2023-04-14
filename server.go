@@ -158,10 +158,10 @@ func Handler(config Config) http.HandlerFunc {
 		response.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
 
 		url := request.URL.Path
-		log.WithField("url", url).
+		filePath := path.Clean(path.Join(config.StaticFilesPath, url))
+		log.WithFields(log.Fields{"url": url, "path": filePath}).
 			Trace("Got request")
 
-		filePath := path.Join(config.StaticFilesPath, url)
 		if !config.EnableGzip {
 			http.ServeFile(response, request, filePath)
 			return
@@ -192,26 +192,20 @@ func displayWebAddress(address string, port uint, useTLS bool) string {
 	}
 }
 
-func Listen(config Config) {
+func Listen(config Config, handler http.HandlerFunc) error {
 	useTLS := config.CertFilePath != "" && config.KeyFilePath != ""
 	config.log(useTLS)
 
 	bindAddress := fmt.Sprintf("%s:%d", config.Address, config.Port)
-	handler := Handler(config)
 	log.WithFields(log.Fields{
 		"address": displayWebAddress(config.Address, config.Port, useTLS),
 		"TLS":     useTLS,
 	}).Info("Started listening for connections")
 
-	var err error
 	if useTLS {
-		err = http.ListenAndServeTLS(bindAddress,
+		return http.ListenAndServeTLS(bindAddress,
 			config.CertFilePath, config.KeyFilePath, handler)
 	} else {
-		err = http.ListenAndServe(bindAddress, handler)
-	}
-
-	if err != nil {
-		log.Fatal(err)
+		return http.ListenAndServe(bindAddress, handler)
 	}
 }

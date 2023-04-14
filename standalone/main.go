@@ -81,7 +81,10 @@ func main() {
 	config := defaultConfig()
 	config = fileConfig("/etc/tiny-web-server.conf", config)
 	config = commandLineConfig(config)
-
 	setLogLevel(config.LogLevel)
-	webserver.Listen(config.WebServerConfig)
+
+	webHandler := webserver.Handler(config.WebServerConfig)
+	if err := webserver.Listen(config.WebServerConfig, webHandler); err != nil {
+		log.Fatal(err)
+	}
 }
