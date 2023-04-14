@@ -147,7 +147,7 @@ func serveDirectory(
 	http.ServeFile(response, request, directoryPath)
 }
 
-func WebHandler(config WebServerConfig) http.HandlerFunc {
+func Handler(config Config) http.HandlerFunc {
 	var gzipCache GzipFileCache
 	if config.EnableGzip {
 		gzipCache = createGzipFileCache(config.ServerName)
@@ -192,12 +192,12 @@ func displayWebAddress(address string, port uint, useTLS bool) string {
 	}
 }
 
-func StartWebServer(config WebServerConfig) {
+func Listen(config Config) {
 	useTLS := config.CertFilePath != "" && config.KeyFilePath != ""
 	config.log(useTLS)
 
 	bindAddress := fmt.Sprintf("%s:%d", config.Address, config.Port)
-	handler := WebHandler(config)
+	handler := Handler(config)
 	log.WithFields(log.Fields{
 		"address": displayWebAddress(config.Address, config.Port, useTLS),
 		"TLS":     useTLS,
