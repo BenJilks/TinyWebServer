@@ -2,7 +2,7 @@ package main
 
 import (
     "flag"
-    . "github.com/BenJilks/TinyWebServer"
+    . "github.com/benjilks/tinywebserver"
     log "github.com/sirupsen/logrus"
     "gopkg.in/ini.v1"
 )
