@@ -24,6 +24,7 @@ type gzipFileCache struct {
 	tempDirectory string
 	cache         map[string]cachedGzipFile
 	mutex         sync.Mutex
+	gmt           *time.Location
 }
 
 func createGzipFileCache(name string) gzipFileCache {
@@ -33,10 +34,16 @@ func createGzipFileCache(name string) gzipFileCache {
 	log.WithField("cache-path", tempDirectory).
 		Info("Using gzip cache")
 
+	location, err := time.LoadLocation("GMT")
+	if err != nil {
+		panic(err)
+	}
+
 	return gzipFileCache{
 		tempDirectory: tempDirectory,
 		cache:         map[string]cachedGzipFile{},
 		mutex:         sync.Mutex{},
+		gmt:           location,
 	}
 }
 
@@ -63,13 +70,12 @@ func gzipAndServeFile(filePath string, gzippedFilePath string, response http.Res
 	return io.Copy(writer, originalFile)
 }
 
-func serveCachedGzippedFile(response http.ResponseWriter, filePath string, size int64) error {
+func serveCachedGzippedFile(response http.ResponseWriter, filePath string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
 
-	response.Header().Set("Content-Length", fmt.Sprint(size))
 	response.Header().Set("Content-Encoding", "gzip")
 	_, err = io.Copy(response, file)
 	return err
@@ -132,13 +138,17 @@ func (fileCache *gzipFileCache) serveGzipFile(
 
 	response.Header().Set("Content-Type", *description.contentType)
 	gzippedFilePath, cachedFile := fileCache.getCachedGzippedFile(description)
-	if cachedFile != nil {
-		if cachedFile.BeingWritten {
-			return errors.New("file currently being cached")
-		}
-		return serveCachedGzippedFile(response, gzippedFilePath, cachedFile.Size)
+	if cachedFile == nil {
+		return fileCache.cacheAndServeFile(
+			response, description, gzippedFilePath)
 	}
 
-	return fileCache.cacheAndServeFile(
-		response, description, gzippedFilePath)
+	if cachedFile.BeingWritten {
+		return errors.New("file currently being cached")
+	}
+
+	response.Header().Set("Content-Length", fmt.Sprint(cachedFile.Size))
+	response.Header().Set("Last-Modified", cachedFile.Time.In(fileCache.gmt).
+		Format("Mon, 2 Jan 2006 15:04:05 MST"))
+	return serveCachedGzippedFile(response, gzippedFilePath)
 }
