@@ -15,16 +15,16 @@ import (
 const DefaultPort = 80
 const DefaultTLSPort = 443
 
-type PathType int
+type pathType int
 
 const (
-	PathTypeNothing = PathType(iota)
-	PathTypeFile
-	PathTypeDirectory
+	pathTypeNothing = pathType(iota)
+	pathTypeFile
+	pathTypeDirectory
 )
 
-type PathDescription struct {
-	pathType PathType
+type pathDescription struct {
+	pathType pathType
 	rawPath  string
 
 	contentType  *string
@@ -51,19 +51,19 @@ func (doubleWriter DoubleWriter) Write(data []byte) (int, error) {
 	return firstCount, nil
 }
 
-func readPathDescription(filePath string) PathDescription {
+func readPathDescription(filePath string) pathDescription {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
-		return PathDescription{
-			pathType: PathTypeNothing,
+		return pathDescription{
+			pathType: pathTypeNothing,
 			rawPath:  filePath,
 		}
 	}
 
 	lastModified := fileInfo.ModTime()
 	if fileInfo.IsDir() {
-		return PathDescription{
-			pathType:     PathTypeDirectory,
+		return pathDescription{
+			pathType:     pathTypeDirectory,
 			rawPath:      filePath,
 			lastModified: &lastModified,
 		}
@@ -71,8 +71,8 @@ func readPathDescription(filePath string) PathDescription {
 
 	contentType := mime.TypeByExtension(path.Ext(filePath))
 	size := fileInfo.Size()
-	return PathDescription{
-		pathType:     PathTypeFile,
+	return pathDescription{
+		pathType:     pathTypeFile,
 		rawPath:      filePath,
 		contentType:  &contentType,
 		size:         &size,
@@ -80,7 +80,7 @@ func readPathDescription(filePath string) PathDescription {
 	}
 }
 
-func shouldGzipFile(description PathDescription, request *http.Request) bool {
+func shouldGzipFile(description pathDescription, request *http.Request) bool {
 	acceptEncoding := request.Header.Get("Accept-Encoding")
 	if !strings.Contains(acceptEncoding, "gzip") {
 		return false
@@ -98,8 +98,8 @@ func shouldGzipFile(description PathDescription, request *http.Request) bool {
 func serveFile(
 	response http.ResponseWriter,
 	request *http.Request,
-	description PathDescription,
-	gzipCache *GzipFileCache,
+	description pathDescription,
+	gzipCache *gzipFileCache,
 ) {
 	if !shouldGzipFile(description, request) {
 		http.ServeFile(response, request, description.rawPath)
@@ -114,7 +114,7 @@ func serveFile(
 	}
 }
 
-func firstValidIndexPath(directoryPath string) PathDescription {
+func firstValidIndexPath(directoryPath string) pathDescription {
 	validIndexFiles := []string{
 		"index.html",
 		"index.htm",
@@ -123,13 +123,13 @@ func firstValidIndexPath(directoryPath string) PathDescription {
 	for _, indexFile := range validIndexFiles {
 		indexPath := path.Join(directoryPath, indexFile)
 		description := readPathDescription(indexPath)
-		if description.pathType == PathTypeFile {
+		if description.pathType == pathTypeFile {
 			return description
 		}
 	}
 
-	return PathDescription{
-		pathType: PathTypeNothing,
+	return pathDescription{
+		pathType: pathTypeNothing,
 	}
 }
 
@@ -137,9 +137,9 @@ func serveDirectory(
 	response http.ResponseWriter,
 	request *http.Request,
 	directoryPath string,
-	gzipCache *GzipFileCache,
+	gzipCache *gzipFileCache,
 ) {
-	if description := firstValidIndexPath(directoryPath); description.pathType != PathTypeNothing {
+	if description := firstValidIndexPath(directoryPath); description.pathType != pathTypeNothing {
 		serveFile(response, request, description, gzipCache)
 		return
 	}
@@ -148,7 +148,7 @@ func serveDirectory(
 }
 
 func Handler(config Config) http.HandlerFunc {
-	var gzipCache GzipFileCache
+	var gzipCache gzipFileCache
 	if config.EnableGzip {
 		gzipCache = createGzipFileCache(config.ServerName)
 	}
@@ -169,11 +169,11 @@ func Handler(config Config) http.HandlerFunc {
 
 		description := readPathDescription(filePath)
 		switch description.pathType {
-		case PathTypeNothing:
+		case pathTypeNothing:
 			http.NotFound(response, request)
-		case PathTypeFile:
+		case pathTypeFile:
 			serveFile(response, request, description, &gzipCache)
-		case PathTypeDirectory:
+		case pathTypeDirectory:
 			serveDirectory(response, request, filePath, &gzipCache)
 		}
 	}
