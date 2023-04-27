@@ -59,7 +59,7 @@ func FileConfig(configFile *ini.File, config Config) Config {
 	serverSection := configFile.Section("server")
 
 	return Config{
-		Address:         config.Address,
+		Address:         serverSection.Key("address").MustString(config.Address),
 		Port:            serverSection.Key("port").MustUint(config.Port),
 		StaticFilesPath: serverSection.Key("static").MustString(config.StaticFilesPath),
 		ServerName:      serverSection.Key("name").MustString(config.ServerName),

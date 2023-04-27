@@ -1,1 +1,3 @@
 github.com/benjilks/tinywebserver v0.0.1/go.mod h1:GTX6M1VCqUA4A7XG/yfE/HqIT95LAhOFTFnp8O7zBVo=
+github.com/stretchr/objx v0.1.0 h1:4G4v2dO3VZwixGIRoQ5Lfboy6nUhCyYzaqnIAPPhYs4=
+gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
