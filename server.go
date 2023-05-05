@@ -3,7 +3,6 @@ package webserver
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"io"
 	"mime"
 	"net/http"
 	"os"
@@ -32,23 +31,22 @@ type pathDescription struct {
 	lastModified *time.Time
 }
 
-type DoubleWriter struct {
-	first  io.Writer
-	second io.Writer
+type NotFoundResponseKind int
+
+const (
+	NotFoundRedirect = NotFoundResponseKind(iota)
+	NotFoundPage
+)
+
+type NotFoundResponse struct {
+	Kind        NotFoundResponseKind
+	RedirectURL string
 }
 
-func (doubleWriter DoubleWriter) Write(data []byte) (int, error) {
-	firstCount, err := doubleWriter.first.Write(data)
-	if err != nil {
-		return firstCount, err
+func defaultNotFoundResponse(_ string) NotFoundResponse {
+	return NotFoundResponse{
+		Kind: NotFoundPage,
 	}
-
-	secondCount, err := doubleWriter.second.Write(data[:firstCount])
-	if err != nil {
-		return secondCount, err
-	}
-
-	return firstCount, nil
 }
 
 func readPathDescription(filePath string) pathDescription {
@@ -147,7 +145,40 @@ func serveDirectory(
 	http.ServeFile(response, request, directoryPath)
 }
 
-func Handler(config Config) http.HandlerFunc {
+func serveURL(
+	response http.ResponseWriter,
+	request *http.Request,
+	url string,
+	config Config,
+	onNotFound func(string) NotFoundResponse,
+	gzipCache *gzipFileCache,
+) {
+	filePath := path.Clean(path.Join(config.StaticFilesPath, url))
+
+	if !config.EnableGzip {
+		http.ServeFile(response, request, filePath)
+		return
+	}
+
+	description := readPathDescription(filePath)
+	switch description.pathType {
+	case pathTypeNothing:
+		notFoundResponse := onNotFound(url)
+		switch notFoundResponse.Kind {
+		case NotFoundPage:
+			http.NotFound(response, request)
+		case NotFoundRedirect:
+			serveURL(response, request, notFoundResponse.RedirectURL,
+				config, onNotFound, gzipCache)
+		}
+	case pathTypeFile:
+		serveFile(response, request, description, gzipCache)
+	case pathTypeDirectory:
+		serveDirectory(response, request, filePath, gzipCache)
+	}
+}
+
+func HandlerWithOnNotFound(config Config, onNotFound func(string) NotFoundResponse) http.HandlerFunc {
 	var gzipCache gzipFileCache
 	if config.EnableGzip {
 		gzipCache = createGzipFileCache(config.ServerName)
@@ -158,25 +189,16 @@ func Handler(config Config) http.HandlerFunc {
 		response.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
 
 		url := request.URL.Path
-		filePath := path.Clean(path.Join(config.StaticFilesPath, url))
-		log.WithFields(log.Fields{"url": url, "path": filePath}).
+		log.WithField("url", url).
 			Trace("Got request")
 
-		if !config.EnableGzip {
-			http.ServeFile(response, request, filePath)
-			return
-		}
-
-		description := readPathDescription(filePath)
-		switch description.pathType {
-		case pathTypeNothing:
-			http.NotFound(response, request)
-		case pathTypeFile:
-			serveFile(response, request, description, &gzipCache)
-		case pathTypeDirectory:
-			serveDirectory(response, request, filePath, &gzipCache)
-		}
+		serveURL(response, request, url,
+			config, onNotFound, &gzipCache)
 	}
+}
+
+func Handler(config Config) http.HandlerFunc {
+	return HandlerWithOnNotFound(config, defaultNotFoundResponse)
 }
 
 func displayWebAddress(address string, port uint, useTLS bool) string {

@@ -27,6 +27,25 @@ type gzipFileCache struct {
 	gmt           *time.Location
 }
 
+type doubleWriter struct {
+	first  io.Writer
+	second io.Writer
+}
+
+func (writer doubleWriter) Write(data []byte) (int, error) {
+	firstCount, err := writer.first.Write(data)
+	if err != nil {
+		return firstCount, err
+	}
+
+	secondCount, err := writer.second.Write(data[:firstCount])
+	if err != nil {
+		return secondCount, err
+	}
+
+	return firstCount, nil
+}
+
 func createGzipFileCache(name string) gzipFileCache {
 	tempDirectory := path.Join(os.TempDir(), name)
 	_ = os.MkdirAll(tempDirectory, os.ModeDir|os.ModePerm)
@@ -60,7 +79,7 @@ func gzipAndServeFile(filePath string, gzippedFilePath string, response http.Res
 	}
 	defer gzippedFile.Close()
 
-	writer := gzip.NewWriter(&DoubleWriter{
+	writer := gzip.NewWriter(&doubleWriter{
 		first:  gzippedFile,
 		second: response,
 	})
